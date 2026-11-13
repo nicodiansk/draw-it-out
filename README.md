@@ -162,12 +162,6 @@ docs/                  design, implementation plan, README sources
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-## Credits
-
-The rigid schema and the "code is read, never retyped" rule are adapted from
-[glitch-walk](https://github.com/Glitch-Cat-Club/glitch-skills) (MIT). The look is the
-nicodiansk Zine design system.
-
 ## License
 
 [MIT](LICENSE)
