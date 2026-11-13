@@ -1,4 +1,5 @@
 """scripts/pack.sh builds the claude.ai zip with explain/ at its root."""
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -10,10 +11,14 @@ from helpers import REPO
 
 class Pack(unittest.TestCase):
     def test_zip_holds_the_skill_and_nothing_else(self):
-        (REPO / "skills/explain/engine/__pycache__").mkdir(exist_ok=True)
-        (REPO / "skills/explain/engine/__pycache__/x.pyc").write_bytes(b"x")
-        with tempfile.TemporaryDirectory() as tmp:
-            res = subprocess.run(["bash", str(REPO / "scripts/pack.sh"), tmp], capture_output=True, text=True)
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as copy:
+            # Pack a copy of the repo holding a planted cache file, so the real repo stays clean.
+            for part in ("scripts", "skills"):
+                shutil.copytree(REPO / part, Path(copy) / part, ignore=shutil.ignore_patterns("__pycache__"))
+            cache = Path(copy) / "skills/explain/engine/__pycache__"
+            cache.mkdir()
+            (cache / "x.pyc").write_bytes(b"x")
+            res = subprocess.run(["bash", str(Path(copy) / "scripts/pack.sh"), tmp], capture_output=True, text=True)
             self.assertEqual(res.returncode, 0, res.stderr)
             zip_path = Path(res.stdout.strip())
             self.assertEqual(zip_path, Path(tmp).resolve() / "draw-it-out-explain.zip")
