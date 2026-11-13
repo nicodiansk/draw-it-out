@@ -236,5 +236,62 @@ class Build(Base):
         self.assertTrue(data["shots"][0]["src"].startswith("data:image/svg+xml;base64,"))
 
 
+class Cli(Base):
+    def doc(self, pieces=None, **over):
+        base = {"mode": "walk", "title": "What happens when I click Pay?", "lang": "en",
+                "pieces": pieces or [piece("a"), piece("b", after=["a"])]}
+        base.update(over)
+        return base
+
+    def write(self, doc, folder=None):
+        path = (folder or self.root) / "doc.json"
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        return path
+
+    def test_refusal_exits_1_and_lists_every_problem(self):
+        d = self.doc([piece("a", shape="cloud", text="One. Two.")])
+        res = render(self.write(d), self.root / "out.html", root=self.root)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("pieces[0].shape →", res.stderr)
+        self.assertIn("pieces[0].text →", res.stderr)
+        self.assertFalse((self.root / "out.html").exists())
+
+    def test_success_writes_html_with_data(self):
+        res = render(self.write(self.doc()), self.root / "out.html", root=self.root)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        html = (self.root / "out.html").read_text(encoding="utf-8")
+        self.assertIn('<html lang="en">', html)
+        self.assertIn("<title>What happens when I click Pay?</title>", html)
+        self.assertNotIn("__DATA__", html)
+        self.assertIn('"label": "A"', html)
+
+    def test_text_cannot_close_the_script_tag(self):
+        p = piece("a", text="It prints </script><script>alert(1)</script> on screen.")
+        d = self.doc([p], title="__DATA__ </title> test")
+        res = render(self.write(d), self.root / "out.html", root=self.root)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        html = (self.root / "out.html").read_text(encoding="utf-8")
+        self.assertEqual(html.count("</script>"), 2)
+        self.assertEqual(html.count("<script"), 2)
+        payload = html.split('type="application/json">', 1)[1].split("</script>", 1)[0]
+        self.assertEqual(json.loads(payload)["sheets"][0]["pieces"][0]["text"], p["text"])
+        self.assertIn("<title>__DATA__ &lt;/title&gt; test</title>", html)
+
+    def test_shots_resolve_next_to_the_json(self):
+        side = self.root / "side"
+        side.mkdir()
+        (side / "s.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+        path = self.write(self.doc(shots=[{"file": "s.svg", "piece": "a", "tag": "The page"}]), side)
+        res = render(path, self.root / "out.html", root=self.root)
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+    def test_bad_json_exits_1(self):
+        path = self.root / "bad.json"
+        path.write_text("{", encoding="utf-8")
+        res = render(path, self.root / "out.html", root=self.root)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("write valid JSON", res.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

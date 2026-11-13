@@ -322,3 +322,38 @@ def build(doc, root, shots_dir=None):
     ui.update(custom)
     return {"mode": doc["mode"], "title": title_lines(title), "lang": lang, "ui": ui,
             "sheets": sheets, "shots": shots}, problems
+
+
+def render_html(data):
+    """Put the data into template.html. '<' is escaped so no text can close the script tag."""
+    template = (HERE / "template.html").read_text(encoding="utf-8")
+    payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+    values = {"LANG": html.escape(data["lang"]), "TITLE": html.escape(" ".join(data["title"])),
+              "DATA": payload}
+    return re.sub(r"__(LANG|TITLE|DATA)__", lambda m: values[m.group(1)], template)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Render a draw-it-out walk or sheet JSON to one HTML file.")
+    ap.add_argument("json", help="walk.json or sheet.json")
+    ap.add_argument("--root", default=".", help="project folder that code paths are relative to")
+    ap.add_argument("--out", required=True, help="HTML file to write")
+    args = ap.parse_args(argv)
+    try:
+        doc = json.loads(Path(args.json).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        print(f"(file) → cannot read {args.json}: {err} → write valid JSON", file=sys.stderr)
+        return 1
+    data, problems = build(doc, args.root, Path(args.json).parent)
+    if problems:
+        print(f"Refused: {len(problems)} problem(s)", file=sys.stderr)
+        for line in problems:
+            print("- " + line, file=sys.stderr)
+        return 1
+    Path(args.out).write_text(render_html(data), encoding="utf-8")
+    print(args.out)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
