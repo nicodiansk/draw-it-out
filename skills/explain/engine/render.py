@@ -169,3 +169,93 @@ def extract(root, code, field, problems):
         return None
     return {"file": rel, "start": rng[0], "end": rng[1],
             "lines": text[rng[0] - 1:rng[1]], "focus": focus}
+
+
+def check_text(value, field, problems, sentence=True):
+    if not isinstance(value, str) or not value.strip():
+        problems.add(field, "missing", "write one plain sentence")
+        return False
+    if sentence and not one_sentence(value):
+        problems.add(field, "longer than one sentence", "keep one sentence; move the rest to another piece")
+        return False
+    return True
+
+
+def check_sheet(sheet, si, ids, root, problems, numbered):
+    where = f"sheets[{si}]." if si is not None else ""
+    pieces = sheet.get("pieces")
+    if not isinstance(pieces, list) or not pieces:
+        problems.add(f"{where}pieces", "missing or empty", "add at least one piece")
+        return None
+    if len(pieces) > MAX_PIECES:
+        problems.add(f"{where}pieces", f"{len(pieces)} pieces, the limit is {MAX_PIECES}",
+                     "split the story into several sheets with \"sheets\": [...]")
+    start, local, out = len(problems), set(), []
+    for pi, p in enumerate(pieces):
+        f = f"{where}pieces[{pi}]"
+        if not isinstance(p, dict):
+            problems.add(f, "not an object", "write {\"id\", \"shape\", \"label\", \"text\"}")
+            continue
+        pid = p.get("id")
+        if not isinstance(pid, str) or not ID_RE.match(pid):
+            problems.add(f"{f}.id", f"\"{pid}\" is not a valid id", "use lowercase letters, digits and dashes")
+        elif pid in ids:
+            problems.add(f"{f}.id", f"\"{pid}\" is used twice", "give every piece its own id")
+        else:
+            ids.add(pid)
+            local.add(pid)
+        if p.get("shape") not in SHAPES:
+            problems.add(f"{f}.shape", f"\"{p.get('shape')}\" is not a shape", "use one of: " + ", ".join(SHAPES))
+        label = p.get("label")
+        if not isinstance(label, str) or not label.strip() or len(label.split()) > MAX_LABEL_WORDS:
+            problems.add(f"{f}.label", "missing or longer than three words", "name the piece in one to three words")
+        check_text(p.get("text"), f"{f}.text", problems)
+        after = p.get("after", [])
+        if not isinstance(after, list):
+            problems.add(f"{f}.after", "not a list", "write it as [\"id\", ...]")
+            after = []
+        code = extract(root, p["code"], f"{f}.code", problems) if "code" in p else None
+        numbered.append(pid)
+        out.append({"id": pid, "shape": p.get("shape"), "label": label, "text": p.get("text"),
+                    "after": after, "code": code, "n": len(numbered)})
+    for pi, p in enumerate(out):
+        for a in p["after"]:
+            if a not in local:
+                problems.add(f"{where}pieces[{pi}].after", f"\"{a}\" is not a piece on this sheet",
+                             "name the id of a piece on the same sheet")
+    if len(problems) > start:
+        return None
+    cycle = find_cycle(out)
+    if cycle:
+        problems.add(f"{where}pieces[].after", "cycle: " + " > ".join(cycle),
+                     "remove one `after` so the story runs one way; a way back is an arrow")
+        return None
+    rank = ranks(out)
+    for p in out:
+        p["rank"] = rank[p["id"]]
+    arrows = []
+    for ai, a in enumerate(sheet.get("arrows", [])):
+        f = f"{where}arrows[{ai}]"
+        if a.get("from") not in local or a.get("to") not in local:
+            problems.add(f, "from/to is not a piece on this sheet", "use two ids from this sheet's pieces")
+            continue
+        if rank[a["to"]] >= rank[a["from"]]:
+            problems.add(f, f"\"{a['to']}\" does not come before \"{a['from']}\"",
+                         "an arrow is the error path: it goes back to an earlier piece")
+            continue
+        check_text(a.get("label"), f"{f}.label", problems)
+        arrows.append({"from": a["from"], "to": a["to"], "label": a.get("label")})
+    unsure = []
+    for ui_, u in enumerate(sheet.get("unsure", [])):
+        f = f"{where}unsure[{ui_}]"
+        if u.get("after") not in local:
+            problems.add(f"{f}.after", f"\"{u.get('after')}\" is not a piece on this sheet",
+                         "name the piece the gap comes after")
+            continue
+        if check_text(u.get("text"), f"{f}.text", problems):
+            unsure.append({"after": u["after"], "text": u["text"], "rank": rank[u["after"]] + 1})
+    for p in out:
+        del p["after"]
+    cols = 1 + max([p["rank"] for p in out] + [u["rank"] for u in unsure])
+    return {"name": sheet.get("name", ""), "pieces": out, "arrows": arrows,
+            "unsure": unsure, "cols": cols}

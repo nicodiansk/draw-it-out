@@ -102,5 +102,63 @@ class Extract(Base):
         self.assertProblem(problems, "pieces[0].code.focus", "not inside 2-4")
 
 
+class Sheet(Base):
+    def check(self, pieces, **extra):
+        problems = R.Problems()
+        sheet = R.check_sheet({"pieces": pieces, **extra}, None, set(), self.root, problems, [])
+        return sheet, problems
+
+    def test_valid_sheet_has_ranks_and_columns(self):
+        sheet, problems = self.check([piece("a"), piece("b", after=["a"])],
+                                     unsure=[{"after": "b", "text": "I didn't see the email leave."}])
+        self.assertEqual(problems, [])
+        self.assertEqual([(p["id"], p["rank"], p["n"]) for p in sheet["pieces"]], [("a", 0, 1), ("b", 1, 2)])
+        self.assertEqual(sheet["unsure"][0]["rank"], 2)
+        self.assertEqual(sheet["cols"], 3)
+
+    def test_shape_outside_vocabulary(self):
+        _, problems = self.check([piece("a", shape="cloud")])
+        self.assertProblem(problems, "pieces[0].shape", "not a shape")
+
+    def test_text_longer_than_one_sentence(self):
+        _, problems = self.check([piece("a", text="The page loads. Then it saves.")])
+        self.assertProblem(problems, "pieces[0].text", "longer than one sentence")
+
+    def test_more_than_twenty_pieces(self):
+        many = [piece(f"p{n}") for n in range(21)]
+        _, problems = self.check(many)
+        self.assertProblem(problems, "pieces", "21 pieces, the limit is 20")
+        self.assertEqual(self.check(many[:20])[1], [])
+
+    def test_after_cycle(self):
+        _, problems = self.check([piece("a", after=["c"]), piece("b", after=["a"]), piece("c", after=["b"])])
+        self.assertProblem(problems, "pieces[].after", "cycle: a > c > b > a")
+
+    def test_unknown_after_id(self):
+        _, problems = self.check([piece("a", after=["zz"])])
+        self.assertProblem(problems, "pieces[0].after", "\"zz\" is not a piece")
+
+    def test_duplicate_id(self):
+        _, problems = self.check([piece("a"), piece("a")])
+        self.assertProblem(problems, "pieces[1].id", "used twice")
+
+    def test_label_over_three_words(self):
+        p = piece("a")
+        p["label"] = "One two three four"
+        self.assertProblem(self.check([p])[1], "pieces[0].label", "longer than three words")
+
+    def test_error_arrow_must_go_back(self):
+        pieces = [piece("a"), piece("b", after=["a"])]
+        _, problems = self.check(pieces, arrows=[{"from": "a", "to": "b", "label": "Fails"}])
+        self.assertProblem(problems, "arrows[0]", "does not come before")
+        sheet, problems = self.check(pieces, arrows=[{"from": "b", "to": "a", "label": "Fails"}])
+        self.assertEqual(problems, [])
+        self.assertEqual(sheet["arrows"], [{"from": "b", "to": "a", "label": "Fails"}])
+
+    def test_code_is_extracted(self):
+        sheet, problems = self.check([piece("a", code={"file": "app.js", "lines": "2-3"})])
+        self.assertEqual(sheet["pieces"][0]["code"]["lines"], ["line 2", "line 3"])
+
+
 if __name__ == "__main__":
     unittest.main()
