@@ -30,5 +30,23 @@ class Examples(unittest.TestCase):
             self.assertIn(needle, html)
 
 
+class Snapshots(unittest.TestCase):
+    def check(self, name):
+        res, html = rendered(name)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        snap = SNAPSHOTS / f"{name}.html"
+        if os.environ.get("UPDATE_SNAPSHOTS") == "1" or not snap.exists():
+            SNAPSHOTS.mkdir(exist_ok=True)
+            snap.write_text(html, encoding="utf-8")
+            self.fail(f"snapshot written to {snap}: review it, then rerun without UPDATE_SNAPSHOTS")
+        self.assertEqual(html, snap.read_text(encoding="utf-8"), f"{name}.html differs from {snap}")
+
+    def test_walk(self):
+        self.check("walk")
+
+    def test_sheet(self):
+        self.check("sheet")
+
+
 if __name__ == "__main__":
     unittest.main()
