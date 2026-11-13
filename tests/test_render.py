@@ -160,5 +160,81 @@ class Sheet(Base):
         self.assertEqual(sheet["pieces"][0]["code"]["lines"], ["line 2", "line 3"])
 
 
+class Build(Base):
+    def doc(self, pieces=None, **over):
+        base = {"mode": "walk", "title": "What happens when I click Pay?", "lang": "en",
+                "pieces": pieces if pieces is not None else [piece("a"), piece("b", after=["a"])]}
+        base.update(over)
+        return base
+
+    def problems(self, doc):
+        return R.build(doc, self.root)[1]
+
+    def test_valid_doc_passes(self):
+        data, problems = R.build(self.doc(), self.root)
+        self.assertEqual(problems, [])
+        self.assertEqual(data["title"], ["What happens when", "I click Pay?"])
+        self.assertEqual(data["ui"]["sheet"], "Sheet")
+        self.assertEqual(len(data["sheets"]), 1)
+
+    def test_mode(self):
+        self.assertProblem(self.problems(self.doc(mode="tour")), "mode", "not a mode")
+
+    def test_title_over_nine_words(self):
+        d = self.doc(title="one two three four five six seven eight nine ten")
+        self.assertProblem(self.problems(d), "title", "nine words")
+
+    def test_language_without_builtin_words_needs_ui(self):
+        self.assertProblem(self.problems(self.doc(lang="de")), "ui", "missing: sheet")
+        ui = {k: k.upper() for k in R.UI_KEYS}
+        self.assertEqual(self.problems(self.doc(lang="de", ui=ui)), [])
+
+    def test_italian_is_built_in(self):
+        data, problems = R.build(self.doc(lang="it"), self.root)
+        self.assertEqual(data["ui"]["sheet"], "Tavola")
+
+    def test_unknown_ui_key(self):
+        self.assertProblem(self.problems(self.doc(ui={"colour": "x"})), "ui", "unknown keys: colour")
+
+    def test_sheets_and_pieces_together(self):
+        d = self.doc(sheets=[{"pieces": [piece("x")]}])
+        self.assertProblem(self.problems(d), "sheets", "both")
+
+    def test_several_sheets_need_names_and_count_per_sheet(self):
+        twelve = lambda tag: [piece(f"{tag}{n}") for n in range(12)]
+        d = self.doc(sheets=[{"name": "One", "pieces": twelve("a")}, {"pieces": twelve("b")}])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "sheets[1].name", "missing")
+        d["sheets"][1]["name"] = "Two"
+        data, problems = R.build(d, self.root)
+        self.assertEqual(problems, [])
+        self.assertEqual(data["sheets"][1]["pieces"][0]["n"], 13)
+
+    def test_after_cannot_cross_sheets(self):
+        d = self.doc(sheets=[{"name": "One", "pieces": [piece("a")]},
+                             {"name": "Two", "pieces": [piece("b", after=["a"])]}])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "sheets[1].pieces[0].after", "not a piece on this sheet")
+
+    def test_ids_unique_across_sheets(self):
+        d = self.doc(sheets=[{"name": "One", "pieces": [piece("a")]}, {"name": "Two", "pieces": [piece("a")]}])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "sheets[1].pieces[0].id", "used twice")
+
+    def test_shot_must_exist(self):
+        d = self.doc(shots=[{"file": "missing.png", "piece": "a", "tag": "The button"}])
+        self.assertProblem(self.problems(d), "shots[0].file", "not found")
+
+    def test_shot_is_embedded_from_shots_dir(self):
+        side = self.root / "side"
+        side.mkdir()
+        (side / "s.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+        d = self.doc(shots=[{"file": "s.svg", "piece": "a", "tag": "The page"}])
+        self.assertProblem(self.problems(d), "shots[0].file", "not found")
+        data, problems = R.build(d, self.root, side)
+        self.assertEqual(problems, [])
+        self.assertTrue(data["shots"][0]["src"].startswith("data:image/svg+xml;base64,"))
+
+
 if __name__ == "__main__":
     unittest.main()

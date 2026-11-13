@@ -259,3 +259,66 @@ def check_sheet(sheet, si, ids, root, problems, numbered):
     cols = 1 + max([p["rank"] for p in out] + [u["rank"] for u in unsure])
     return {"name": sheet.get("name", ""), "pieces": out, "arrows": arrows,
             "unsure": unsure, "cols": cols}
+
+
+def build(doc, root, shots_dir=None):
+    """Validate doc, read its code (under root) and screenshots (under shots_dir, default root).
+    Returns (data, problems); data is None when there are problems."""
+    problems = Problems()
+    root = Path(root).resolve()
+    shots_dir = Path(shots_dir).resolve() if shots_dir else root
+    if not isinstance(doc, dict):
+        problems.add("(top)", "not a JSON object", "start from an example in examples/")
+        return None, problems
+    if doc.get("mode") not in ("walk", "sheet"):
+        problems.add("mode", f"\"{doc.get('mode')}\" is not a mode", "use \"walk\" or \"sheet\"")
+    title = doc.get("title")
+    if not isinstance(title, str) or not title.strip() or len(title.split()) > MAX_TITLE_WORDS:
+        problems.add("title", "missing or longer than nine words", "use the user's question in at most nine words")
+    lang = doc.get("lang", "")
+    if not isinstance(lang, str) or not LANG_RE.match(lang):
+        problems.add("lang", f"\"{lang}\" is not a language tag", "use the asker's language, like \"en\" or \"it\"")
+        lang = "en"
+    custom = doc.get("ui", {})
+    unknown = [k for k in custom if k not in UI_KEYS]
+    if unknown:
+        problems.add("ui", "unknown keys: " + ", ".join(unknown), "use only: " + ", ".join(UI_KEYS))
+    base = UI.get(lang.split("-")[0])
+    missing = [k for k in UI_KEYS if k not in custom] if base is None else []
+    if missing:
+        problems.add("ui", f"no built-in words for \"{lang}\"; missing: " + ", ".join(missing),
+                     "add \"ui\" with each key translated into the asker's language")
+    if "sheets" in doc and "pieces" in doc:
+        problems.add("sheets", "both \"sheets\" and top-level \"pieces\"", "use one: \"pieces\" for one sheet, \"sheets\" for several")
+        return None, problems
+    multi = "sheets" in doc
+    sheets_in = doc["sheets"] if multi else [doc]
+    if multi and (not isinstance(sheets_in, list) or not sheets_in):
+        problems.add("sheets", "missing or empty", "add at least one sheet")
+        return None, problems
+    ids, numbered, sheets = set(), [], []
+    for si, s in enumerate(sheets_in):
+        if multi and len(sheets_in) > 1 and not (isinstance(s.get("name"), str) and s["name"].strip()):
+            problems.add(f"sheets[{si}].name", "missing", "name each sheet in one to three words")
+        sheets.append(check_sheet(s, si if multi else None, ids, root, problems, numbered))
+    shots = []
+    for i, shot in enumerate(doc.get("shots", [])):
+        f = f"shots[{i}]"
+        path = inside(shots_dir, str(shot.get("file", "")))
+        kind = SHOT_TYPES.get(Path(str(shot.get("file", ""))).suffix.lower())
+        if path is None or not path.is_file() or kind is None:
+            problems.add(f"{f}.file", f"image {shot.get('file')} not found under {shots_dir}",
+                         "use a .png, .jpg, .webp, .gif or .svg path relative to the JSON file")
+            continue
+        if shot.get("piece") not in ids:
+            problems.add(f"{f}.piece", f"\"{shot.get('piece')}\" is not a piece", "name the piece this screenshot shows")
+            continue
+        check_text(shot.get("tag"), f"{f}.tag", problems)
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        shots.append({"src": f"data:{kind};base64,{data}", "piece": shot["piece"], "tag": shot.get("tag")})
+    if problems:
+        return None, problems
+    ui = dict(base or {})
+    ui.update(custom)
+    return {"mode": doc["mode"], "title": title_lines(title), "lang": lang, "ui": ui,
+            "sheets": sheets, "shots": shots}, problems
