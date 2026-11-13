@@ -67,5 +67,40 @@ class Helpers(unittest.TestCase):
         self.assertEqual(R.title_lines("Login"), ["Login"])
 
 
+class Extract(Base):
+    def extract(self, code):
+        problems = R.Problems()
+        return R.extract(self.root, code, "pieces[0].code", problems), problems
+
+    def test_lines_are_exact(self):
+        (self.root / "x.py").write_text("a = 1\n\tb = '<\\/script>'\n  c = 3  \n", encoding="utf-8")
+        code, problems = self.extract({"file": "x.py", "lines": "2-3", "focus": "3"})
+        self.assertEqual(problems, [])
+        self.assertEqual(code, {"file": "x.py", "start": 2, "end": 3,
+                                "lines": ["\tb = '<\\/script>'", "  c = 3  "], "focus": [3]})
+
+    def test_missing_file(self):
+        code, problems = self.extract({"file": "nope.js", "lines": "1-2"})
+        self.assertIsNone(code)
+        self.assertProblem(problems, "pieces[0].code.file", "not found")
+
+    def test_file_outside_root(self):
+        for rel in ("../app.js", "/etc/hostname"):
+            code, problems = self.extract({"file": rel, "lines": "1"})
+            self.assertProblem(problems, "pieces[0].code.file", "not found")
+
+    def test_lines_past_end_of_file(self):
+        code, problems = self.extract({"file": "app.js", "lines": "8-12"})
+        self.assertProblem(problems, "pieces[0].code.lines", "has 10 lines, asked for 8-12")
+
+    def test_lines_not_a_range(self):
+        code, problems = self.extract({"file": "app.js", "lines": "12-3"})
+        self.assertProblem(problems, "pieces[0].code.lines", "not a line range")
+
+    def test_focus_outside_range(self):
+        code, problems = self.extract({"file": "app.js", "lines": "2-4", "focus": "5"})
+        self.assertProblem(problems, "pieces[0].code.focus", "not inside 2-4")
+
+
 if __name__ == "__main__":
     unittest.main()

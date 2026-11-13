@@ -130,3 +130,42 @@ def title_lines(title):
         lines.append(" ".join(words[i:i + step]))
         i += step
     return lines
+
+
+def inside(root, rel):
+    """Resolve rel under root; None when it is absolute or escapes root."""
+    if Path(rel).is_absolute():
+        return None
+    path = (root / rel).resolve()
+    return path if path == root or root in path.parents else None
+
+
+def extract(root, code, field, problems):
+    """Read code.lines of code.file under root, exactly as on disk."""
+    if not isinstance(code, dict) or not isinstance(code.get("file"), str):
+        problems.add(field, "needs {\"file\": ..., \"lines\": ...}",
+                     "give the file path relative to --root and a line range like \"12-30\"")
+        return None
+    rel = code["file"]
+    path = inside(root, rel)
+    if path is None or not path.is_file():
+        problems.add(f"{field}.file", f"file {rel} not found under {root}",
+                     "use a path relative to --root of a file you opened")
+        return None
+    rng = parse_lines(code.get("lines", ""))
+    if rng is None:
+        problems.add(f"{field}.lines", f"\"{code.get('lines')}\" is not a line range",
+                     "write it as \"12-30\" or \"12\"")
+        return None
+    text = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if rng[1] > len(text):
+        problems.add(f"{field}.lines", f"{rel} has {len(text)} lines, asked for {rng[0]}-{rng[1]}",
+                     f"pick lines inside 1-{len(text)}")
+        return None
+    focus = parse_focus(code.get("focus", ""))
+    if focus is None or any(n < rng[0] or n > rng[1] for n in focus):
+        problems.add(f"{field}.focus", f"\"{code.get('focus')}\" is not inside {rng[0]}-{rng[1]}",
+                     "list key lines like \"14,20-22\" inside the range, or leave focus out")
+        return None
+    return {"file": rel, "start": rng[0], "end": rng[1],
+            "lines": text[rng[0] - 1:rng[1]], "focus": focus}
