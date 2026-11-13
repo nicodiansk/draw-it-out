@@ -1,0 +1,30 @@
+{
+  "mode": "sheet",
+  "title": "Come arriva online una modifica?",
+  "lang": "it",
+  "sheets": [
+    {
+      "name": "La proposta",
+      "pieces": [
+        {"id": "ask", "shape": "you", "label": "Chiedi", "text": "Chiedi all'AI di cambiare il colore del bottone."},
+        {"id": "change", "shape": "ai", "label": "Modifica", "text": "L'AI scrive la modifica, e due volte non la scrive mai uguale.", "after": ["ask"]},
+        {"id": "pr", "shape": "thing", "label": "Pull request", "text": "La modifica diventa una richiesta da approvare.", "after": ["change"]},
+        {"id": "tests", "shape": "check", "label": "Test automatici", "text": "I test girano da soli e dicono sì o no.", "after": ["pr"]}
+      ],
+      "arrows": [
+        {"from": "tests", "to": "change", "label": "Test rossi"}
+      ]
+    },
+    {
+      "name": "Online",
+      "pieces": [
+        {"id": "review", "shape": "you", "label": "Approvi", "text": "Guardi la modifica e la approvi."},
+        {"id": "merge", "shape": "tested", "label": "Unione", "text": "La modifica entra nel codice principale, coperta dai test.", "after": ["review"]},
+        {"id": "live", "shape": "look", "label": "Online", "text": "Il bottone nuovo è online per tutti.", "after": ["merge"]}
+      ],
+      "unsure": [
+        {"after": "live", "text": "Non ho visto quanto tempo passa prima che sia online."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "walk",
+  "title": "What happens when I click Pay?",
+  "lang": "en",
+  "pieces": [
+    {"id": "click", "shape": "you", "label": "Click Pay", "text": "You press the Pay button on the checkout page.",
+     "code": {"file": "shop/app/pay-button.js", "lines": "4-15", "focus": "5"}},
+    {"id": "request", "shape": "thing", "label": "Pay request", "text": "The page sends your cart and card to the server.",
+     "code": {"file": "shop/app/pay-button.js", "lines": "6-9"}, "after": ["click"]},
+    {"id": "cart", "shape": "check", "label": "Cart not empty", "text": "The server stops here if your cart has nothing in it.",
+     "code": {"file": "shop/api/pay.js", "lines": "8-11", "focus": "9"}, "after": ["request"]},
+    {"id": "card", "shape": "check", "label": "Card looks real", "text": "A quick math check on the card number, which charges nothing.",
+     "code": {"file": "shop/lib/card.js", "lines": "2-12"}, "after": ["cart"]},
+    {"id": "save", "shape": "tested", "label": "Save order", "text": "The order is written to the database, and a test checks this part.",
+     "code": {"file": "shop/lib/db.js", "lines": "8-14", "focus": "9-12"}, "after": ["card"]},
+    {"id": "note", "shape": "ai", "label": "Thank-you note", "text": "An AI writes a short thank-you note, a little different every time.",
+     "code": {"file": "shop/api/pay.js", "lines": "16"}, "after": ["save"]},
+    {"id": "done", "shape": "look", "label": "Order page", "text": "You see your order number and the note.",
+     "code": {"file": "shop/app/pay-button.js", "lines": "10-12", "focus": "12"}, "after": ["note"]}
+  ],
+  "arrows": [
+    {"from": "card", "to": "click", "label": "Card refused, you try again"}
+  ],
+  "unsure": [
+    {"after": "note", "text": "I didn't see whether the note is also sent by email."}
+  ],
+  "shots": [
+    {"file": "shop/shots/checkout.svg", "piece": "click", "tag": "The Pay button"}
+  ]
+}
