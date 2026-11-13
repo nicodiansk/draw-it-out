@@ -1,0 +1,17 @@
+{
+  "name": "draw-it-out",
+  "owner": {
+    "name": "Nicholas"
+  },
+  "metadata": {
+    "description": "Explanations drawn as sheets that build themselves"
+  },
+  "plugins": [
+    {
+      "name": "draw-it-out",
+      "source": "./",
+      "description": "Explains your code or a process as a drawing that builds itself, in plain words.",
+      "strict": true
+    }
+  ]
+}

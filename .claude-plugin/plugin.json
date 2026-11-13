@@ -1,0 +1,13 @@
+{
+  "name": "draw-it-out",
+  "displayName": "Draw It Out",
+  "description": "Explains your code or a process as a drawing that builds itself, in plain words. One skill, two modes: walk (follow a click through your code) and sheet (draw a process).",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nicholas"
+  },
+  "homepage": "https://github.com/nicodiansk/draw-it-out",
+  "repository": "https://github.com/nicodiansk/draw-it-out",
+  "license": "MIT",
+  "keywords": ["explain", "diagram", "walkthrough", "visual", "onboarding"]
+}
