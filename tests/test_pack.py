@@ -26,5 +26,14 @@ class Pack(unittest.TestCase):
         self.assertFalse([n for n in names if "capture.py" in n or "__pycache__" in n or n.endswith(".pyc")])
 
 
+class Readme(unittest.TestCase):
+    def test_readme_says_how_to_install_and_test(self):
+        text = (REPO / "README.md").read_text(encoding="utf-8")
+        for needle in ("claude plugin marketplace add nicodiansk/draw-it-out",
+                       "claude plugin install draw-it-out@draw-it-out", "/draw-it-out:explain",
+                       "bash scripts/pack.sh", "python3 -m unittest discover -s tests", "glitch-walk"):
+            self.assertIn(needle, text)
+
+
 if __name__ == "__main__":
     unittest.main()
