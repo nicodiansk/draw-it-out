@@ -40,19 +40,23 @@ button:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
 /* Screenshots: what you see */
 .dio-shots { display: flex; flex-wrap: wrap; gap: 24px; margin: 0 0 24px; }
 .dio-shots h2 { flex-basis: 100%; margin: 0; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper-60); font-weight: 400; }
-.dio-shot { position: relative; margin: 0; max-width: min(100%, 420px); }
+.dio-shot { position: relative; margin: 0; max-width: min(100%, 420px); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .dio-shot img { display: block; max-width: 100%; height: auto; border: 3px solid var(--paper); border-radius: 4px; }
-.dio-tag { position: absolute; left: 8px; top: -12px; background: var(--mustard); color: var(--on-accent); padding: 4px 10px; border-radius: 2px;
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; box-shadow: 3px 3px 0 0 var(--ink); transform: rotate(var(--tilt-tag)); max-width: 90%; }
+/* The tag sits above the screenshot and tilts up from its bottom-left corner, so it never covers the picture */
+.dio-tag { order: -1; margin-left: 8px; background: var(--mustard); color: var(--on-accent); padding: 4px 10px; border-radius: 2px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; box-shadow: 3px 3px 0 0 var(--ink);
+  transform-origin: left bottom; transform: rotate(-4deg); max-width: 90%; }
 /* Sheet */
 .dio-sheet { position: relative; background: var(--ink); border: 2px solid #f3e6c840; border-radius: 6px; padding: 88px 16px 24px; margin-bottom: 40px; }
 .dio-label { position: absolute; right: 16px; top: 16px; display: inline-flex; flex-direction: column; gap: 2px; background: var(--coal);
   border: 2px solid var(--mustard); border-radius: 4px; padding: 8px 14px; transform: rotate(1.5deg); max-width: calc(100% - 32px); }
 .dio-label__fig { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper-60); }
 .dio-label__title { font-family: var(--font-display); font-size: 16px; line-height: 1.05; text-transform: uppercase; color: var(--mustard); }
-.dio-cols { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px 12px; }
+.dio-cols { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px 12px; }
+/* A slot is one column plus the arrow that leads into it: rows wrap between slots, never between an arrow and its column */
+.dio-slot { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .dio-col { display: flex; flex-direction: column; gap: 20px; flex: 0 0 200px; min-width: 0; }
-.dio-join { flex: none; align-self: center; }
+.dio-join { flex: none; margin-top: 20px; }
 .dio-arrow { position: relative; display: block; width: 36px; height: 3px; background: var(--paper); }
 .dio-arrow::after { content: ''; position: absolute; right: -2px; top: -5px; border-left: 9px solid var(--paper); border-top: 6.5px solid transparent; border-bottom: 6.5px solid transparent; }
 /* Pieces: one shape, one meaning */
@@ -76,7 +80,15 @@ button.dio-shape { cursor: pointer; }
 .dio-text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--paper-85); }
 .dio-unsure { border: 3px dashed var(--paper); border-radius: 6px; background: var(--coal); padding: 10px 14px; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; color: var(--paper); }
 .dio-unsure::before { content: '? '; color: var(--mustard); }
-/* Error path: dashed pink, back one step, below the row */
+/* Error path: a dashed pink arrow from the failing piece back to an earlier one, routed under the row
+   (in a stacked layout: along the right edge, with the labels listed under the sheet) */
+.dio-backs-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.dio-backs-svg g { transform-box: fill-box; transform-origin: center; }
+.dio-backs-svg path { fill: none; stroke: var(--pink); stroke-width: 3; stroke-linejoin: round; }
+.dio-backs-svg path.dio-head { fill: var(--pink); stroke: none; }
+.dio-back__tag { position: absolute; left: 0; top: 0; white-space: nowrap; background: var(--coal); border: 2px solid var(--pink); border-radius: 4px; padding: 2px 8px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper); max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; }
+.dio-sheet.is-stacked .dio-back__tag, .dio-sheet:not(.is-stacked) .dio-backs { display: none; }
 .dio-backs { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
 .dio-back { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .dio-back__line { display: block; width: 120px; height: 3px; position: relative; background: repeating-linear-gradient(90deg, var(--pink) 0 9px, transparent 9px 15px); }
@@ -110,6 +122,7 @@ button.dio-shape { cursor: pointer; }
 @keyframes dio-pop { 0% { opacity: 0; translate: 0 8px; scale: 0.7; } 66% { opacity: 1; scale: 1.06; } 100% { opacity: 1; translate: none; scale: none; } }
 @media (max-width: 699px) {
   .dio-cols { flex-direction: column; align-items: stretch; }
+  .dio-slot { flex-direction: column; align-items: stretch; }
   .dio-col { flex-basis: auto; }
   .dio-join { align-self: flex-start; margin: 6px 0 6px 24px; transform: rotate(90deg); }
 }
@@ -131,7 +144,9 @@ button.dio-shape { cursor: pointer; }
   var step = 0;
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
-  function stepped(e) { e.classList.add('dio-step'); e.dataset.step = step++; return e; }
+  // Story order: each element carries its step number; elements that share a number appear together.
+  function stepped(e, n) { e.classList.add('dio-step'); e.setAttribute('data-step', n == null ? step++ : n); return e; }
+  var SVG = 'http://www.w3.org/2000/svg';
   var byId = {};
   D.sheets.forEach(function (s) { s.pieces.forEach(function (p) { byId[p.id] = p; }); });
 
@@ -160,7 +175,7 @@ button.dio-shape { cursor: pointer; }
     var pre = el('pre');
     panel.append(headRow, pre);
     sheetEl.appendChild(panel);
-    return function show(code, btn) {
+    return function show(code) {
       where.textContent = code.file + ':' + code.start + '-' + code.end;
       pre.textContent = '';
       code.lines.forEach(function (text, i) {
@@ -174,6 +189,59 @@ button.dio-shape { cursor: pointer; }
     };
   }
 
+  // Route each error arrow without crossing a piece. Side by side: down from the bottom of the failing
+  // piece's column, along a lane under its row, (left margin and up, when the target is on an earlier
+  // row), then up into the target's column. Stacked: out to the right edge, up, back in to the target.
+  function routeBacks(sheet, cols, svg, drawn) {
+    var o = sheet.getBoundingClientRect(), ox = o.left + sheet.clientLeft, oy = o.top + sheet.clientTop;
+    function box(e) { var r = e.getBoundingClientRect(); return { l: r.left - ox, r: r.right - ox, t: r.top - oy, b: r.bottom - oy, cx: (r.left + r.right) / 2 - ox, cy: (r.top + r.bottom) / 2 - oy }; }
+    var stacked = getComputedStyle(cols).flexDirection === 'column';
+    sheet.classList.toggle('is-stacked', stacked);
+    var area = box(cols);
+    var rows = [];
+    Array.prototype.forEach.call(cols.children, function (slot) {
+      var b = box(slot), row = rows.filter(function (r) { return Math.abs(r.t - b.t) < 4; })[0];
+      if (!row) { row = { t: b.t, b: b.b, used: 0 }; rows.push(row); }
+      row.b = Math.max(row.b, b.b);
+    });
+    function rowOf(b) { return rows.filter(function (r) { return Math.abs(r.t - b.t) < 4; })[0]; }
+    function lane(row) { return row.b + 14 + 26 * row.used++; }
+    drawn.forEach(function (d, k) {
+      var fp = cols.querySelector('.dio-piece[data-id="' + d.from + '"]'), tp = cols.querySelector('.dio-piece[data-id="' + d.to + '"]');
+      var F = box(fp.firstChild), T = box(tp.firstChild), pts, tagAt = null;
+      if (stacked) {
+        var gx = area.r + 6 + 4 * k;
+        pts = [[F.r + 4, F.cy], [gx, F.cy], [gx, T.cy], [T.r + 4, T.cy]];
+      } else {
+        var cf = box(fp.parentNode), ct = box(tp.parentNode);
+        var rf = rowOf(box(fp.parentNode.parentNode)), rt = rowOf(box(tp.parentNode.parentNode));
+        var yf = lane(rf);
+        if (rf === rt) {
+          pts = [[F.cx, cf.b + 4], [F.cx, yf], [T.cx, yf], [T.cx, ct.b + 6]];
+          tagAt = [(F.cx + T.cx) / 2, yf, 'center'];
+        } else {
+          var lx = area.l - 14 - 6 * k, yt = lane(rt);
+          pts = [[F.cx, cf.b + 4], [F.cx, yf], [lx, yf], [lx, yt], [T.cx, yt], [T.cx, ct.b + 6]];
+          tagAt = [F.cx + 12, yf, 'start'];
+        }
+      }
+      d.line.setAttribute('d', 'M' + pts.map(function (q) { return q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join(' L'));
+      var a = pts[pts.length - 2], z = pts[pts.length - 1], len = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1;
+      var ux = (z[0] - a[0]) / len, uy = (z[1] - a[1]) / len;
+      d.tip.setAttribute('d', 'M' + z[0] + ' ' + z[1] + ' L' + (z[0] - 11 * ux - 6.5 * uy) + ' ' + (z[1] - 11 * uy + 6.5 * ux) +
+        ' L' + (z[0] - 11 * ux + 6.5 * uy) + ' ' + (z[1] - 11 * uy - 6.5 * ux) + ' Z');
+      if (tagAt) {
+        var w = d.tag.offsetWidth, h = d.tag.offsetHeight;
+        var left = tagAt[2] === 'center' ? tagAt[0] - w / 2 : tagAt[0];
+        d.tag.style.left = Math.max(4, Math.min(left, sheet.clientWidth - w - 4)) + 'px';
+        d.tag.style.top = (tagAt[1] - h / 2) + 'px';
+      }
+    });
+    // Room under the last row only for the lanes it uses.
+    var last = rows[rows.length - 1], pad = stacked || !last.used ? '' : (20 + 26 * last.used) + 'px';
+    if (cols.style.paddingBottom !== pad) cols.style.paddingBottom = pad;
+  }
+
   function pieceEl(p, showCode) {
     var box = el('div', 'dio-piece');
     box.dataset.id = p.id;
@@ -181,7 +249,7 @@ button.dio-shape { cursor: pointer; }
     if (p.shape === 'ai') shape.insertAdjacentHTML('beforeend', DIE);
     if (p.shape === 'tested') shape.insertAdjacentHTML('beforeend', '<span class="dio-studs" aria-hidden="true"><i></i><i></i><i></i></span>');
     shape.append(el('span', 'dio-n', pad(p.n)), el('span', null, p.label));
-    if (p.code) shape.addEventListener('click', function () { showCode(p.code, shape); });
+    if (p.code) shape.addEventListener('click', function () { showCode(p.code); });
     box.append(shape, el('p', 'dio-text', p.text));
     return box;
   }
@@ -207,15 +275,22 @@ button.dio-shape { cursor: pointer; }
     var cols = el('div', 'dio-cols');
     var colEls = [], joins = [];
     for (var c = 0; c < s.cols; c++) {
-      if (c > 0) { var j = el('span', 'dio-join'); j.appendChild(el('span', 'dio-arrow')); cols.appendChild(j); joins[c] = j; }
-      colEls[c] = el('div', 'dio-col'); cols.appendChild(colEls[c]);
+      var slot = el('div', 'dio-slot');
+      if (c > 0) { var j = el('span', 'dio-join'); j.appendChild(el('span', 'dio-arrow')); slot.appendChild(j); joins[c] = j; }
+      colEls[c] = el('div', 'dio-col'); slot.appendChild(colEls[c]);
+      cols.appendChild(slot);
     }
+    if (s.arrows.length) cols.style.rowGap = (28 + 26 * s.arrows.length) + 'px';
     sheet.appendChild(cols);
     var backs = el('div', 'dio-backs');
     sheet.appendChild(backs);
+    var svg = document.createElementNS(SVG, 'svg'); svg.setAttribute('class', 'dio-backs-svg'); svg.setAttribute('aria-hidden', 'true');
+    sheet.appendChild(svg);
+    var drawn = [];
     var showCode = codePanel(sheet);
     var entered = {};
-    function enter(col) { if (col > 0 && !entered[col]) { entered[col] = true; stepped(joins[col]); } }
+    // The arrow into a column appears with the first thing in that column, as one step.
+    function enter(col) { if (col > 0 && !entered[col]) { entered[col] = true; stepped(joins[col], step); } }
     s.pieces.forEach(function (p) {
       enter(p.rank);
       colEls[p.rank].appendChild(stepped(pieceEl(p, showCode)));
@@ -224,10 +299,19 @@ button.dio-shape { cursor: pointer; }
         colEls[u.rank].appendChild(stepped(el('div', 'dio-unsure', u.text)));
       });
       s.arrows.filter(function (a) { return a.from === p.id; }).forEach(function (a) {
+        var to = byId[a.to], n = step++;
+        var words = a.label + ' · ' + D.ui.back_to + ' ' + pad(to.n) + ' ' + to.label;
         var row = el('div', 'dio-back');
-        var to = byId[a.to];
-        row.append(el('span', 'dio-back__line'), el('span', 'dio-back__text', a.label + ' · ' + D.ui.back_to + ' ' + pad(to.n) + ' ' + to.label));
-        backs.appendChild(stepped(row));
+        row.append(el('span', 'dio-back__line'), el('span', 'dio-back__text', words));
+        backs.appendChild(stepped(row, n));
+        var g = document.createElementNS(SVG, 'g');
+        var line = document.createElementNS(SVG, 'path'); line.setAttribute('stroke-dasharray', '9 6');
+        var tip = document.createElementNS(SVG, 'path'); tip.setAttribute('class', 'dio-head');
+        g.append(line, tip);
+        svg.appendChild(stepped(g, n));
+        var tag = el('span', 'dio-back__tag', words); tag.title = words;
+        sheet.appendChild(stepped(tag, n));
+        drawn.push({ from: a.from, to: a.to, line: line, tip: tip, tag: tag });
       });
     });
     if (si === 0) {
@@ -255,28 +339,35 @@ button.dio-shape { cursor: pointer; }
       sheet.insertBefore(bar, sheet.querySelector('.dio-code'));
     }
     root.appendChild(sheet);
+    if (drawn.length) {
+      var redraw = function () { routeBacks(sheet, cols, svg, drawn); };
+      redraw();
+      if (window.ResizeObserver) new ResizeObserver(redraw).observe(cols);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+    }
   });
 
   var items = Array.prototype.slice.call(document.querySelectorAll('.dio-step'));
-  var shown = 0, timer = null;
+  var total = step, shown = 0, timer = null;
   var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function show(n) {
-    shown = Math.max(0, Math.min(n, items.length));
-    items.forEach(function (e, i) { e.classList.toggle('is-on', i < shown); });
+    shown = Math.max(0, Math.min(n, total));
+    items.forEach(function (e) { e.classList.toggle('is-on', +e.getAttribute('data-step') < shown); });
   }
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
   function run() {
     stop(); show(0);
-    timer = setInterval(function () { show(shown + 1); if (shown >= items.length) stop(); }, 500);
+    timer = setInterval(function () { show(shown + 1); if (shown >= total) stop(); }, 500);
   }
-  play.addEventListener('click', function () { if (still) show(items.length); else run(); });
+  play.addEventListener('click', function () { if (still) show(total); else run(); });
   prev.addEventListener('click', function () { stop(); show(shown - 1); });
   next.addEventListener('click', function () { stop(); show(shown + 1); });
   document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || (e.target.closest && e.target.closest('.dio-code, input, textarea'))) return;
     if (e.key === 'ArrowLeft') { stop(); show(shown - 1); }
     if (e.key === 'ArrowRight') { stop(); show(shown + 1); }
   });
-  if (still) show(items.length); else run();
+  if (still) show(total); else run();
 })();
 </script>
 </body>

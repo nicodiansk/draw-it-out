@@ -11,5 +11,5 @@ export function PayButton({ cart }) {
     if (!res.ok) return showError(body.error);
     showOrder(body.order, body.note);
   }
-  return `<button onclick="${onClick}">Pay ${cart.total}</button>`;
+  return Object.assign(document.createElement("button"), { textContent: `Pay ${cart.total}`, onclick: onClick });
 }

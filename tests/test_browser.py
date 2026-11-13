@@ -88,6 +88,63 @@ class BrowserSmoke(unittest.TestCase):
         self.assertEqual(page.locator(".dio-line.is-focus").count(), 1)
         page.close()
 
+    def test_build_follows_story_order(self):
+        page = self.open("walk", motion="reduce")
+        steps = page.evaluate("""() => Array.from(document.querySelectorAll('.dio-piece'))
+            .map(e => [e.dataset.id, +e.getAttribute('data-step')])""")
+        order = [pid for pid, _ in sorted(steps, key=lambda x: x[1])]
+        self.assertEqual(order, ["click", "request", "cart", "card", "save", "note", "done"])
+        back = page.evaluate("+document.querySelector('.dio-backs-svg g').getAttribute('data-step')")
+        self.assertLess(back, dict(steps)["save"])
+        self.assertGreater(back, dict(steps)["card"])
+        page.keyboard.press("ArrowLeft")
+        self.assertFalse(page.locator(".dio-piece[data-id=done]").evaluate("e => e.classList.contains('is-on')"))
+        self.assertTrue(page.locator(".dio-backs-svg g").evaluate("e => e.classList.contains('is-on')"))
+        page.close()
+
+    def test_column_arrow_appears_with_its_piece(self):
+        page = self.open("walk", motion="reduce")
+        same = page.evaluate("""() => Array.from(document.querySelectorAll('.dio-slot')).slice(1).every(slot =>
+            slot.querySelector('.dio-join').getAttribute('data-step') ===
+            slot.querySelector('.dio-col > .dio-step').getAttribute('data-step'))""")
+        self.assertTrue(same)
+        page.close()
+
+    def test_wrapped_rows_start_with_an_arrow(self):
+        page = self.open("walk", width=1280, motion="reduce")
+        rows = page.evaluate("""() => {
+            const rows = {};
+            document.querySelectorAll('.dio-slot').forEach((slot, i) => {
+                const top = Math.round(slot.getBoundingClientRect().top);
+                (rows[top] = rows[top] || []).push(slot.firstElementChild.classList[0]);
+            });
+            return Object.keys(rows).sort((a, b) => a - b).map(k => rows[k]);
+        }""")
+        self.assertGreater(len(rows), 1, "the walk should wrap at 1280px")
+        for row in rows[1:]:
+            self.assertEqual(row[0], "dio-join", rows)
+        page.close()
+
+    def test_error_path_is_an_arrow_back_to_its_target(self):
+        for width in (1280, 900, 390):
+            page = self.open("walk", width=width, motion="reduce")
+            d = page.locator(".dio-backs-svg path").first.get_attribute("d")
+            self.assertGreaterEqual(d.count("L"), 3, (width, d))
+            tip = page.locator(".dio-backs-svg path.dio-head").first.bounding_box()
+            target = page.locator(".dio-piece[data-id=click]").bounding_box()
+            cx, cy = tip["x"] + tip["width"] / 2, tip["y"] + tip["height"] / 2
+            self.assertTrue(target["x"] - 4 <= cx <= target["x"] + target["width"] + 24, (width, tip, target))
+            self.assertTrue(target["y"] - 4 <= cy <= target["y"] + target["height"] + 24, (width, tip, target))
+            page.close()
+
+    def test_shot_tag_never_covers_the_screenshot(self):
+        for width in (1280, 390):
+            page = self.open("walk", width=width, motion="reduce")
+            tag = page.locator(".dio-tag").first.bounding_box()
+            img = page.locator(".dio-shot img").first.bounding_box()
+            self.assertLessEqual(tag["y"] + tag["height"], img["y"] + 1, width)
+            page.close()
+
 
 if __name__ == "__main__":
     unittest.main()
