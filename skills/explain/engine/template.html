@@ -232,7 +232,9 @@ button.dio-shape { cursor: pointer; }
         ' L' + (z[0] - 11 * ux + 6.5 * uy) + ' ' + (z[1] - 11 * uy - 6.5 * ux) + ' Z');
       if (tagAt) {
         var w = d.tag.offsetWidth, h = d.tag.offsetHeight;
-        var left = tagAt[2] === 'center' ? tagAt[0] - w / 2 : tagAt[0];
+        // On the arrow when it fits there, else beside the point where the arrow starts.
+        var fits = tagAt[2] === 'center' && w + 24 <= Math.abs(F.cx - T.cx);
+        var left = fits ? tagAt[0] - w / 2 : F.cx + 12;
         d.tag.style.left = Math.max(4, Math.min(left, sheet.clientWidth - w - 4)) + 'px';
         d.tag.style.top = (tagAt[1] - h / 2) + 'px';
       }
