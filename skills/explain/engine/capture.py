@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """draw-it-out screenshots (Claude Code only, optional). Opens one localhost page, runs only the
 declared clicks and waits, saves a PNG. Read-only: every request that is not a GET or HEAD to
-localhost is blocked, so no form is sent, nothing is paid, no other site is opened. No JavaScript.
+localhost is blocked, in the page and in any popup it opens; WebSockets and service workers are
+blocked too. So no form is sent, nothing is paid, no other site is opened. It runs no script of
+its own. Exit 1 with one line when the page can't be captured, 3 when Playwright is missing.
 
 Usage: python3 capture.py http://localhost:3000/checkout --out shots/checkout.png \
          [--click "text=Pay"] [--wait 1500] [--wait "#receipt"]
@@ -51,6 +53,31 @@ def parse(argv):
     return args
 
 
+def guard(context):
+    """Apply the read-only rule to the whole context: the page, its popups, its WebSockets.
+    Service workers are blocked so no request can go around the route."""
+    context.route("**/*", lambda route: route.continue_() if allow_request(route.request.method, route.request.url)
+                  else route.abort())
+    context.route_web_socket("**", lambda ws: ws.close())
+
+
+def shoot(browser, args):
+    context = browser.new_context(viewport={"width": args.width, "height": args.height},
+                                  service_workers="block", ignore_https_errors=True)
+    guard(context)
+    page = context.new_page()
+    page.goto(args.url, wait_until="networkidle", timeout=MAX_WAIT_MS)
+    for kind, value in args.steps:
+        if kind == "click":
+            page.click(value, timeout=MAX_WAIT_MS)
+        elif value.isdigit():
+            page.wait_for_timeout(int(value))
+        else:
+            page.wait_for_selector(value, timeout=MAX_WAIT_MS)
+    page.screenshot(path=args.out)
+    context.close()
+
+
 def main(argv=None):
     args = parse(argv)
     try:
@@ -59,24 +86,20 @@ def main(argv=None):
         print("Playwright is not installed: pip install playwright && python3 -m playwright install chromium"
               " — or explain without screenshots.", file=sys.stderr)
         return 3
-    with sync_playwright() as p:
-        try:
-            browser = p.chromium.launch()
-        except Exception:
-            browser = p.chromium.launch(channel="chrome")
-        page = browser.new_page(viewport={"width": args.width, "height": args.height}, java_script_enabled=True)
-        page.route("**/*", lambda route: route.continue_() if allow_request(route.request.method, route.request.url)
-                   else route.abort())
-        page.goto(args.url, wait_until="networkidle")
-        for kind, value in args.steps:
-            if kind == "click":
-                page.click(value, timeout=MAX_WAIT_MS)
-            elif value.isdigit():
-                page.wait_for_timeout(int(value))
-            else:
-                page.wait_for_selector(value, timeout=MAX_WAIT_MS)
-        page.screenshot(path=args.out)
-        browser.close()
+    from playwright.sync_api import Error as PlaywrightError
+    try:
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch()
+            except PlaywrightError:
+                browser = p.chromium.launch(channel="chrome")
+            try:
+                shoot(browser, args)
+            finally:
+                browser.close()
+    except PlaywrightError as err:
+        print(f"capture failed: {str(err).splitlines()[0]} — explain without this screenshot.", file=sys.stderr)
+        return 1
     print(args.out)
     return 0
 

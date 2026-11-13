@@ -42,9 +42,10 @@ one. Note the line numbers as you read. Only files you opened go into the JSON.
   ```
 
   Only `--click` and `--wait` (milliseconds or a selector). It opens only localhost and blocks
-  every request that is not a read, so a click on Pay shows the page but sends nothing.
-  Never ask the user to sign in for a screenshot. Exit 3 means Playwright is missing: go on
-  without screenshots.
+  every request that is not a read, in popups too, plus WebSockets and service workers, so a
+  click on Pay shows the page but sends nothing. Never ask the user to sign in for a
+  screenshot. Exit 3 means Playwright is missing: go on without screenshots. Exit 1 means that
+  page couldn't be captured (the line says why): go on without that screenshot.
 - **claude.ai**: the screenshots the user uploaded, if any.
 - Otherwise none: the sheet is code only.
 

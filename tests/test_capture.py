@@ -46,20 +46,28 @@ class Safety(unittest.TestCase):
             C.parse(["http://localhost:3000", "--out", "a.png", "--wait", "60000"])
 
 
+PAGES = {
+    "/": b'<form method="post" action="/pay"><button id="pay">Pay</button></form>'
+         b'<script>fetch("/api/pay", {method: "POST"})</script>',
+    "/popup-page": b'<button id="pay" onclick="window.open(\'/popup\')">Pay</button>',
+    "/popup": b'<script>fetch("/api/charge", {method: "POST"})</script>',
+    "/ws-page": b'<button id="pay" onclick="var s = new WebSocket(\'ws://\' + location.host + \'/ws\');'
+                b' s.onopen = function () { s.send(\'PAY\'); }">Pay</button>',
+}
+
+
 class Recorder(http.server.BaseHTTPRequestHandler):
     seen = []
-    PAGE = (b'<form method="post" action="/pay"><button id="pay">Pay</button></form>'
-            b'<script>fetch("/api/pay", {method: "POST"})</script>')
 
     def do_GET(self):
-        Recorder.seen.append(("GET", self.path))
+        Recorder.seen.append(("GET", self.path, self.headers.get("Upgrade", "")))
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.end_headers()
-        self.wfile.write(self.PAGE)
+        self.wfile.write(PAGES.get(self.path, b""))
 
     def do_POST(self):
-        Recorder.seen.append(("POST", self.path))
+        Recorder.seen.append(("POST", self.path, ""))
         self.send_response(200)
         self.end_headers()
 
@@ -69,21 +77,49 @@ class Recorder(http.server.BaseHTTPRequestHandler):
 
 @unittest.skipIf(sync_playwright is None, "playwright not installed")
 class CaptureSmoke(unittest.TestCase):
-    def test_click_on_submit_never_reaches_the_server(self):
-        server = http.server.HTTPServer(("127.0.0.1", 0), Recorder)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+    def setUp(self):
+        Recorder.seen = []
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+    def capture(self, path, *steps):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "shot.png"
             res = subprocess.run([sys.executable, str(ENGINE / "capture.py"),
-                                  f"http://127.0.0.1:{server.server_port}/", "--out", str(out),
-                                  "--click", "#pay", "--wait", "300"], capture_output=True, text=True)
-            server.shutdown()
+                                  f"http://127.0.0.1:{self.server.server_port}{path}", "--out", str(out),
+                                  *steps], capture_output=True, text=True)
             if res.returncode == 3 or "Executable doesn't exist" in res.stderr:
                 self.skipTest("no browser")
             self.assertEqual(res.returncode, 0, res.stderr)
             self.assertTrue(out.exists())
-        self.assertIn(("GET", "/"), Recorder.seen)
+
+    def test_click_on_submit_never_reaches_the_server(self):
+        self.capture("/", "--click", "#pay", "--wait", "300")
+        self.assertIn(("GET", "/", ""), Recorder.seen)
         self.assertFalse([s for s in Recorder.seen if s[0] == "POST"])
+
+    def test_popup_cannot_send_either(self):
+        self.capture("/popup-page", "--click", "#pay", "--wait", "800")
+        self.assertIn(("GET", "/popup-page", ""), Recorder.seen)
+        self.assertFalse([s for s in Recorder.seen if s[0] == "POST"], Recorder.seen)
+
+    def test_websocket_never_reaches_the_server(self):
+        self.capture("/ws-page", "--click", "#pay", "--wait", "800")
+        self.assertIn(("GET", "/ws-page", ""), Recorder.seen)
+        self.assertFalse([s for s in Recorder.seen if s[2].lower() == "websocket"], Recorder.seen)
+
+    def test_page_that_never_loads_exits_1_with_one_line(self):
+        res = subprocess.run([sys.executable, str(ENGINE / "capture.py"), "http://127.0.0.1:9/",
+                              "--out", "never.png"], capture_output=True, text=True)
+        if res.returncode == 3 or "Executable doesn't exist" in res.stderr:
+            self.skipTest("no browser")
+        self.assertEqual(res.returncode, 1, res.stderr)
+        self.assertNotIn("Traceback", res.stderr)
+        self.assertIn("capture failed", res.stderr)
 
 
 if __name__ == "__main__":
