@@ -38,5 +38,16 @@ class ModeFiles(unittest.TestCase):
         self.assertIn("Only files you opened", text)
 
 
+class Schema(unittest.TestCase):
+    def test_schema_names_every_shape_and_ui_key(self):
+        text = (SKILL / "schema.md").read_text(encoding="utf-8")
+        for shape in R.SHAPES:
+            self.assertIn(f"`{shape}`", text)
+        for key in R.UI_KEYS:
+            self.assertIn(f"`{key}`", text)
+        self.assertIn(f"at most {R.MAX_PIECES}", text)
+        self.assertIn("at most nine words", text)
+
+
 if __name__ == "__main__":
     unittest.main()
