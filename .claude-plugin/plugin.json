@@ -1,7 +1,7 @@
 {
   "name": "draw-it-out",
   "displayName": "Draw It Out",
-  "description": "Explains your code or a process as a drawing that builds itself, in plain words. One skill, two modes: walk (follow a click through your code) and sheet (draw a process).",
+  "description": "Explains your code or any process as a drawing that builds itself, in plain words and in your language. Two modes: walk follows a click through your real code, with the exact lines behind each step; sheet draws a pipeline, an agent loop or a business flow. Read-only.",
   "version": "0.1.0",
   "author": {
     "name": "Nicholas"
@@ -9,5 +9,14 @@
   "homepage": "https://github.com/nicodiansk/draw-it-out",
   "repository": "https://github.com/nicodiansk/draw-it-out",
   "license": "MIT",
-  "keywords": ["explain", "diagram", "walkthrough", "visual", "onboarding"]
+  "keywords": [
+    "explain",
+    "diagram",
+    "walkthrough",
+    "visual",
+    "onboarding",
+    "plain-language",
+    "code-explainer",
+    "flowchart"
+  ]
 }

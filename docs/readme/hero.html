@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>draw-it-out</title>
+<!-- README banner source, 1280×640 (also the GitHub social preview). Rebuild: python3 scripts/readme_images.py -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600&family=Space+Mono:wght@400;700&display=swap">
+<style>
+:root {
+  --ink: #070707; --coal: #111111; --paper: #f3e6c8; --paper-85: #f3e6c8d9; --paper-60: #f3e6c899;
+  --pink: #ef4f7a; --pink-deep: #9e2448; --teal: #26b7aa; --mustard: #f6bd33; --mustard-deep: #9c6f06; --on-accent: #070707;
+  --font-display: "Archivo Black", Impact, sans-serif; --font-mono: "Space Mono", ui-monospace, monospace; --font-sans: Inter, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; background: var(--ink); color: var(--paper); font-family: var(--font-sans); }
+body { position: relative; }
+body::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.09;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.left { position: absolute; left: 72px; top: 76px; width: 560px; }
+.eyebrow { display: inline-block; background: var(--pink); color: var(--on-accent); font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+  letter-spacing: 0.22em; text-transform: uppercase; padding: 6px 12px; transform: rotate(-1.5deg); box-shadow: 4px 5px 0 0 var(--pink-deep); }
+h1 { margin: 34px 0 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: 112px; line-height: 0.92; letter-spacing: -0.035em; }
+h1 span { display: block; } h1 span:nth-child(2) { color: var(--teal); }
+.lead { margin: 30px 0 0; font-family: var(--font-mono); font-size: 19px; line-height: 1.5; color: var(--paper-85); max-width: 520px; }
+.meta { position: absolute; left: 72px; bottom: 56px; display: flex; gap: 12px; }
+.chip { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper); border: 2px solid var(--paper-85); border-radius: 6px; padding: 6px 12px; }
+/* The mini sheet */
+.sheet { position: absolute; right: 64px; top: 70px; width: 500px; height: 470px; border: 2px solid #f3e6c840; border-radius: 6px; background: var(--ink); }
+.label { position: absolute; right: 16px; top: 16px; background: var(--coal); border: 2px solid var(--mustard); border-radius: 4px; padding: 6px 12px; transform: rotate(1.5deg);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper-60); }
+.shape { position: absolute; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 8px 16px; font-family: var(--font-display); font-size: 15px;
+  text-transform: uppercase; color: var(--on-accent); border: 3px solid var(--ink); border-radius: 6px; white-space: nowrap; }
+.n { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; opacity: 0.75; }
+.you { left: 40px; top: 96px; background: var(--mustard); border-radius: 9999px; box-shadow: 4px 5px 0 0 var(--mustard-deep); transform: rotate(-1.2deg); }
+.ai { left: 270px; top: 96px; background: var(--pink); box-shadow: 4px 5px 0 0 var(--pink-deep); transform: rotate(0.8deg); }
+.ai svg { width: 20px; height: 20px; }
+.check { left: 34px; top: 236px; background: transparent; border-color: transparent; color: var(--teal); padding-left: 4px; transform: rotate(0.8deg); }
+.check::before { content: ''; width: 28px; height: 28px; margin: 6px; background: var(--teal); border: 3px solid var(--ink); outline: 2px solid var(--teal); transform: rotate(45deg); }
+.tested { left: 270px; top: 240px; background: var(--paper); box-shadow: 6px 7px 0 0 var(--mustard-deep); transform: rotate(-1.2deg); }
+.studs { position: absolute; left: 12px; right: 12px; top: -14px; display: flex; justify-content: space-around; }
+.studs i { width: 22px; height: 11px; background: var(--paper); border: 2px solid var(--ink); border-bottom: 0; border-radius: 3px 3px 0 0; }
+.look { left: 150px; top: 372px; background: var(--ink); color: var(--mustard); border-color: var(--mustard); border-radius: 4px; font-family: var(--font-mono); letter-spacing: 0.12em; transform: rotate(-0.8deg); }
+svg.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tag { position: absolute; left: 10px; top: 182px; background: var(--coal); border: 2px solid var(--pink); border-radius: 4px; padding: 2px 8px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper); }
+.sticker { position: absolute; right: 36px; top: 548px; background: var(--mustard); color: var(--on-accent); padding: 6px 12px; font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 0.16em; text-transform: uppercase; box-shadow: 3px 3px 0 0 var(--mustard-deep); transform: rotate(-4deg); }
+.doodles svg { position: absolute; }
+</style>
+</head>
+<body>
+<div class="left">
+  <span class="eyebrow">★ Claude Code plugin · claude.ai skill</span>
+  <h1><span>Draw it</span><span>out</span></h1>
+  <p class="lead">Explains your code or a process as a drawing that builds itself, in plain words.</p>
+</div>
+<div class="meta"><span class="chip">walk · your code</span><span class="chip">sheet · any process</span><span class="chip">any language</span></div>
+
+<div class="sheet">
+  <span class="label">Sheet 01</span>
+  <svg class="lines" viewBox="0 0 500 470" aria-hidden="true">
+    <g stroke="#f3e6c8" stroke-width="3" fill="#f3e6c8">
+      <line x1="204" y1="120" x2="252" y2="120"/><path d="M262 120 l-11 -7 v14z" stroke="none"/>
+      <path d="M330 152 C 330 200, 120 190, 92 226" fill="none"/><path d="M88 233 l2 -13 l10 8z" stroke="none"/>
+      <line x1="196" y1="262" x2="252" y2="262"/><path d="M262 262 l-11 -7 v14z" stroke="none"/>
+      <path d="M340 298 C 340 340, 260 330, 248 362" fill="none"/><path d="M245 370 l-4 -13 l11 3z" stroke="none"/>
+    </g>
+    <g stroke="#ef4f7a" stroke-width="3" fill="none" stroke-dasharray="9 6" stroke-linejoin="round">
+      <path d="M40 270 L18 270 L18 119 L34 119"/>
+    </g>
+    <path d="M45 119 l-12 -7 v14z" fill="#ef4f7a"/>
+  </svg>
+  <span class="tag">Card refused</span>
+  <span class="shape you"><span class="n">01</span>Click pay</span>
+  <span class="shape ai"><svg viewBox="0 0 100 100"><rect x="8" y="8" width="84" height="84" rx="18" fill="none" stroke="currentColor" stroke-width="9"/><circle cx="30" cy="30" r="9" fill="currentColor"/><circle cx="70" cy="30" r="9" fill="currentColor"/><circle cx="50" cy="50" r="9" fill="currentColor"/><circle cx="30" cy="70" r="9" fill="currentColor"/><circle cx="70" cy="70" r="9" fill="currentColor"/></svg><span class="n">02</span>Fraud check</span>
+  <span class="shape check"><span class="n">03</span>Card ok?</span>
+  <span class="shape tested"><span class="studs"><i></i><i></i><i></i></span><span class="n">04</span>Save order</span>
+  <span class="shape look"><span class="n">05</span>Order page</span>
+</div>
+<span class="sticker">Read-only · stdlib Python</span>
+
+<div class="doodles" aria-hidden="true">
+  <svg style="left:610px; top:88px; width:40px; height:40px" viewBox="0 0 40 40"><path d="M20 3v34M5 11l30 18M5 29l30-18" stroke="#ef4f7a" stroke-width="4" stroke-linecap="round" fill="none"/></svg>
+  <svg style="left:560px; top:350px; width:34px; height:34px; transform: rotate(18deg)" viewBox="0 0 40 40"><path d="M20 2c1.5 10 4 14.5 18 18-14 3.5-16.5 8-18 18-1.5-10-4-14.5-18-18 14-3.5 16.5-8 18-18z" fill="#f3e6c8"/></svg>
+  <svg style="left:1212px; top:30px; width:26px; height:26px; transform: rotate(-24deg)" viewBox="0 0 40 40"><path d="M6 9l29 22M33 6L9 35" stroke="#f3e6c8" stroke-width="4.5" stroke-linecap="round" fill="none"/></svg>
+</div>
+</body>
+</html>

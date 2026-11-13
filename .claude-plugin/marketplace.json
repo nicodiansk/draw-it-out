@@ -4,13 +4,13 @@
     "name": "Nicholas"
   },
   "metadata": {
-    "description": "Explanations drawn as sheets that build themselves"
+    "description": "draw-it-out: your code or any process, explained as a drawing that builds itself."
   },
   "plugins": [
     {
       "name": "draw-it-out",
       "source": "./",
-      "description": "Explains your code or a process as a drawing that builds itself, in plain words.",
+      "description": "Explains your code or any process as a drawing that builds itself, in plain words and in your language.",
       "strict": true
     }
   ]

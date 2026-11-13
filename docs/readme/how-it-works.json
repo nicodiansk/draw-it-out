@@ -1,0 +1,15 @@
+{
+  "mode": "sheet",
+  "title": "How does draw-it-out work?",
+  "lang": "en",
+  "pieces": [
+    {"id": "ask", "shape": "you", "label": "Ask", "text": "You ask how something works, in your own words and language."},
+    {"id": "write", "shape": "ai", "label": "Writes the data", "text": "Claude reads your code and writes only data: pieces, shapes and line ranges.", "after": ["ask"]},
+    {"id": "check", "shape": "check", "label": "Checks it", "text": "render.py refuses a missing file, a wrong line range or a rambling piece.", "after": ["write"]},
+    {"id": "code", "shape": "thing", "label": "Code from disk", "text": "The code behind each piece is read from your files, never retyped.", "after": ["check"]},
+    {"id": "page", "shape": "look", "label": "One HTML page", "text": "A drawing that builds itself piece by piece, with the code one tap away.", "after": ["code"]}
+  ],
+  "arrows": [
+    {"from": "check", "to": "write", "label": "Refused, Claude fixes the data"}
+  ]
+}

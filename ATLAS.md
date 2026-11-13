@@ -18,6 +18,7 @@ Last updated: 2026-11-13
 | Change the stop-motion build-in or replay/← → controls | `skills/explain/engine/template.html` | `show` / `run` / `stop` near the end |
 | Change what a screenshot run may do | `skills/explain/engine/capture.py` | `allow_request` is the network rule; `guard` applies it to the whole context (popups, WebSockets, no service workers) |
 | Change what goes into the claude.ai zip | `scripts/pack.sh` | `zip -x` excludes `capture.py` and caches |
+| Change the README images (banner, screenshots, self-diagram) | `docs/readme/` + `scripts/readme_images.py` | `hero.html` and `how-it-works.json` are the sources; the script renders and shoots them as JPEG |
 | See a complete valid input | `skills/explain/examples/walk.json`, `sheet.json` | Walk over the `shop/` mini-app; Italian two-sheet process |
 | Understand why it is built this way | `docs/plans/2026-11-13-draw-it-out-design.md` | Agreed design (brainstorm) |
 | See every task, decision and Review Focus | `docs/plans/2026-11-13-draw-it-out.md` | Implementation plan (15 tasks, 5 lanes) |
@@ -44,7 +45,8 @@ Last updated: 2026-11-13
 | `skills/explain/examples/shop/` | Mini checkout app the walk example reads code from | `api/pay.js`, `lib/card.js`, `lib/db.js`, `app/pay-button.js`, `shots/checkout.svg` |
 | `tests/` | stdlib `unittest` suite (79 tests) | `helpers.py`, `test_render.py`, `test_browser.py`, `test_capture.py`, `test_snapshots.py` |
 | `tests/snapshots/` | Expected HTML of the two examples | `walk.html`, `sheet.html` |
-| `scripts/` | Packaging | `pack.sh` |
+| `scripts/` | Packaging, README images | `pack.sh`, `readme_images.py` |
+| `docs/readme/` | README graphics and their sources | `hero.html`, `how-it-works.json`, `*.jpg` |
 | `docs/plans/` | Design and implementation plan | `2026-11-13-draw-it-out-design.md`, `2026-11-13-draw-it-out.md` |
 
 ## Key Symbols
@@ -101,6 +103,7 @@ Last updated: 2026-11-13
 - Snapshots: any template change fails `test_snapshots.py`; rerun with `UPDATE_SNAPSHOTS=1`, review, commit.
 - Browser tests and the capture smoke test skip without Playwright; in the cloud sandbox Playwright's bundled Chromium is missing and system Chrome is used.
 - `tests/test_pack.py` packs a temp copy of `scripts/` + `skills/` with a planted `__pycache__/x.pyc`, so the real repo stays clean.
+- README images are JPEG on purpose: the film grain makes PNGs 2–6 MB. Shoot with a viewport as tall as the page, not `full_page` (the grain layer is `position: fixed`).
 - Zine is dark only (no light theme); Zine visual rules come from the "nicodiansk Zine" design-system artifact.
 - Build-in order is the `data-step` number, not page order: a column's incoming arrow and an error arrow's line, tag and caption share one step.
 - Error-arrow labels: on the arrow (`.dio-back__tag`) side by side; listed under the sheet (`.dio-backs`) when stacked under 700px (`.is-stacked`).
