@@ -23,5 +23,20 @@ class SkillEntry(unittest.TestCase):
         self.assertIn("at most three times", text)
 
 
+class ModeFiles(unittest.TestCase):
+    def test_modes_ask_at_most_three_questions(self):
+        for name in ("walk.md", "sheet.md"):
+            text = (SKILL / name).read_text(encoding="utf-8")
+            self.assertIn("at most three questions", text, name)
+            for shape in R.SHAPES:
+                self.assertIn(f"`{shape}`", text, f"{name} maps {shape}")
+
+    def test_walk_uses_capture_safely(self):
+        text = (SKILL / "walk.md").read_text(encoding="utf-8")
+        self.assertIn("engine/capture.py", text)
+        self.assertIn("Never ask the user to sign in", text)
+        self.assertIn("Only files you opened", text)
+
+
 if __name__ == "__main__":
     unittest.main()
