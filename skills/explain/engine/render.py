@@ -19,10 +19,11 @@ SHAPES = ("you", "ai", "check", "thing", "tested", "look")
 MAX_PIECES = 20
 MAX_TITLE_WORDS = 9
 MAX_LABEL_WORDS = 3
+MAX_TAG_WORDS = 6
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 LINES_RE = re.compile(r"^(\d+)(?:-(\d+))?$")
 LANG_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
-SENTENCE_END = re.compile(r"[.!?]+\s+|[。！？]+")
+SENTENCE_END = re.compile(r"[.!?]+\s+(?!\s)(?=.)|[。！？]+(?=.)", re.S)
 SHOT_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
               ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml"}
 UI = {
@@ -55,9 +56,13 @@ class Problems(list):
 
 
 def one_sentence(text):
-    """True when text holds at most one sentence: no sentence end followed by more text."""
-    parts = [p for p in SENTENCE_END.split(text.strip()) if p.strip()]
-    return len(parts) <= 1
+    """True when text holds at most one sentence: no sentence end followed by more text.
+    A stop followed by a lowercase word ("e.g. the cart") does not end the sentence."""
+    text = text.strip()
+    for m in SENTENCE_END.finditer(text):
+        if m.group().strip() in "。！？" or not text[m.end()].islower():
+            return False
+    return True
 
 
 def parse_lines(spec):
@@ -70,12 +75,12 @@ def parse_lines(spec):
     return (start, end) if 1 <= start <= end else None
 
 
-def parse_focus(spec):
-    """'14,20-22' → [14, 20, 21, 22]; '' → []; bad → None."""
+def parse_focus(spec, within=None):
+    """'14,20-22' → [14, 20, 21, 22]; '' → []; bad, or outside the (start, end) `within` → None."""
     out = []
     for part in [p for p in str(spec).split(",") if p.strip()]:
         rng = parse_lines(part)
-        if rng is None:
+        if rng is None or (within and (rng[0] < within[0] or rng[1] > within[1])):
             return None
         out.extend(range(rng[0], rng[1] + 1))
     return out
@@ -157,13 +162,16 @@ def extract(root, code, field, problems):
         problems.add(f"{field}.lines", f"\"{code.get('lines')}\" is not a line range",
                      "write it as \"12-30\" or \"12\"")
         return None
-    text = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    # Split on "\n" only: splitlines() also breaks on form feeds and U+2028, which shifts line numbers.
+    text = path.read_text(encoding="utf-8", errors="replace").split("\n")
+    if text[-1] == "":
+        text.pop()
     if rng[1] > len(text):
         problems.add(f"{field}.lines", f"{rel} has {len(text)} lines, asked for {rng[0]}-{rng[1]}",
                      f"pick lines inside 1-{len(text)}")
         return None
-    focus = parse_focus(code.get("focus", ""))
-    if focus is None or any(n < rng[0] or n > rng[1] for n in focus):
+    focus = parse_focus(code.get("focus", ""), rng)
+    if focus is None:
         problems.add(f"{field}.focus", f"\"{code.get('focus')}\" is not inside {rng[0]}-{rng[1]}",
                      "list key lines like \"14,20-22\" inside the range, or leave focus out")
         return None
@@ -179,6 +187,15 @@ def check_text(value, field, problems, sentence=True):
         problems.add(field, "longer than one sentence", "keep one sentence; move the rest to another piece")
         return False
     return True
+
+
+def listed(obj, key, where, problems):
+    """obj[key] when it is a list (default []); otherwise a problem and []."""
+    value = obj.get(key, [])
+    if isinstance(value, list):
+        return value
+    problems.add(f"{where}{key}", "not a list", f"write \"{key}\": [...] or leave it out")
+    return []
 
 
 def check_sheet(sheet, si, ids, root, problems, numbered):
@@ -214,6 +231,7 @@ def check_sheet(sheet, si, ids, root, problems, numbered):
         if not isinstance(after, list):
             problems.add(f"{f}.after", "not a list", "write it as [\"id\", ...]")
             after = []
+        after = [a if isinstance(a, str) else json.dumps(a) for a in after]
         code = extract(root, p["code"], f"{f}.code", problems) if "code" in p else None
         numbered.append(pid)
         out.append({"id": pid, "shape": p.get("shape"), "label": label, "text": p.get("text"),
@@ -234,8 +252,11 @@ def check_sheet(sheet, si, ids, root, problems, numbered):
     for p in out:
         p["rank"] = rank[p["id"]]
     arrows = []
-    for ai, a in enumerate(sheet.get("arrows", [])):
+    for ai, a in enumerate(listed(sheet, "arrows", where, problems)):
         f = f"{where}arrows[{ai}]"
+        if not isinstance(a, dict):
+            problems.add(f, "not an object", "write {\"from\", \"to\", \"label\"}")
+            continue
         if a.get("from") not in local or a.get("to") not in local:
             problems.add(f, "from/to is not a piece on this sheet", "use two ids from this sheet's pieces")
             continue
@@ -246,14 +267,19 @@ def check_sheet(sheet, si, ids, root, problems, numbered):
         check_text(a.get("label"), f"{f}.label", problems)
         arrows.append({"from": a["from"], "to": a["to"], "label": a.get("label")})
     unsure = []
-    for ui_, u in enumerate(sheet.get("unsure", [])):
+    for ui_, u in enumerate(listed(sheet, "unsure", where, problems)):
         f = f"{where}unsure[{ui_}]"
+        if not isinstance(u, dict):
+            problems.add(f, "not an object", "write {\"after\", \"text\"}")
+            continue
         if u.get("after") not in local:
             problems.add(f"{f}.after", f"\"{u.get('after')}\" is not a piece on this sheet",
                          "name the piece the gap comes after")
             continue
         if check_text(u.get("text"), f"{f}.text", problems):
             unsure.append({"after": u["after"], "text": u["text"], "rank": rank[u["after"]] + 1})
+    if len(problems) > start:
+        return None
     for p in out:
         del p["after"]
     cols = 1 + max([p["rank"] for p in out] + [u["rank"] for u in unsure])
@@ -280,9 +306,15 @@ def build(doc, root, shots_dir=None):
         problems.add("lang", f"\"{lang}\" is not a language tag", "use the asker's language, like \"en\" or \"it\"")
         lang = "en"
     custom = doc.get("ui", {})
+    if not isinstance(custom, dict):
+        problems.add("ui", "not an object", "write {\"sheet\": \"...\", ...} or leave it out")
+        custom = {}
     unknown = [k for k in custom if k not in UI_KEYS]
     if unknown:
         problems.add("ui", "unknown keys: " + ", ".join(unknown), "use only: " + ", ".join(UI_KEYS))
+    for k in UI_KEYS:
+        if k in custom and not (isinstance(custom[k], str) and custom[k].strip()):
+            problems.add(f"ui.{k}", "empty or not text", "write the word in the asker's language")
     base = UI.get(lang.split("-")[0])
     missing = [k for k in UI_KEYS if k not in custom] if base is None else []
     if missing:
@@ -296,14 +328,27 @@ def build(doc, root, shots_dir=None):
     if multi and (not isinstance(sheets_in, list) or not sheets_in):
         problems.add("sheets", "missing or empty", "add at least one sheet")
         return None, problems
+    if multi:
+        for key in ("arrows", "unsure"):
+            if key in doc:
+                problems.add(key, "next to \"sheets\"", f"put \"{key}\" inside each sheet")
     ids, numbered, sheets = set(), [], []
     for si, s in enumerate(sheets_in):
-        if multi and len(sheets_in) > 1 and not (isinstance(s.get("name"), str) and s["name"].strip()):
-            problems.add(f"sheets[{si}].name", "missing", "name each sheet in one to three words")
+        if not isinstance(s, dict):
+            problems.add(f"sheets[{si}]", "not an object", "write {\"name\", \"pieces\", \"arrows\", \"unsure\"}")
+            continue
+        name = s.get("name")
+        if multi and (len(sheets_in) > 1 or name is not None) and not (
+                isinstance(name, str) and name.strip() and len(name.split()) <= MAX_LABEL_WORDS):
+            problems.add(f"sheets[{si}].name", "missing or longer than three words",
+                         "name each sheet in one to three words")
         sheets.append(check_sheet(s, si if multi else None, ids, root, problems, numbered))
     shots = []
-    for i, shot in enumerate(doc.get("shots", [])):
+    for i, shot in enumerate(listed(doc, "shots", "", problems)):
         f = f"shots[{i}]"
+        if not isinstance(shot, dict):
+            problems.add(f, "not an object", "write {\"file\", \"piece\", \"tag\"}")
+            continue
         path = inside(shots_dir, str(shot.get("file", "")))
         kind = SHOT_TYPES.get(Path(str(shot.get("file", ""))).suffix.lower())
         if path is None or not path.is_file() or kind is None:
@@ -313,7 +358,8 @@ def build(doc, root, shots_dir=None):
         if shot.get("piece") not in ids:
             problems.add(f"{f}.piece", f"\"{shot.get('piece')}\" is not a piece", "name the piece this screenshot shows")
             continue
-        check_text(shot.get("tag"), f"{f}.tag", problems)
+        if check_text(shot.get("tag"), f"{f}.tag", problems) and len(shot["tag"].split()) > MAX_TAG_WORDS:
+            problems.add(f"{f}.tag", "longer than six words", "say what the screenshot shows in a few words")
         data = base64.b64encode(path.read_bytes()).decode("ascii")
         shots.append({"src": f"data:{kind};base64,{data}", "piece": shot["piece"], "tag": shot.get("tag")})
     if problems:

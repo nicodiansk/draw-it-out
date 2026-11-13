@@ -39,8 +39,8 @@ Full examples: `examples/walk.json` (code, a screenshot, a gap) and `examples/sh
 | `pieces[].after` | optional list of ids on the same sheet that come right before; no loops |
 | `arrows[]` | the error path only: `from` a piece back `to` an earlier one, `label` one sentence |
 | `unsure[]` | `after` a piece id, `text` one sentence: a gap you didn't see |
-| `shots[]` | `file` (.png .jpg .webp .gif .svg) relative to the JSON's folder, `piece` id, `tag` short |
-| `sheets[]` | instead of top-level `pieces`/`arrows`/`unsure`, for more than 20 pieces: each `{"name", "pieces", "arrows", "unsure"}`, `name` one to three words |
+| `shots[]` | `file` (.png .jpg .webp .gif .svg) relative to the JSON's folder, `piece` id, `tag` at most six words |
+| `sheets[]` | instead of top-level `pieces`/`arrows`/`unsure` (those go inside each sheet), for more than 20 pieces: each `{"name", "pieces", "arrows", "unsure"}`, `name` one to three words |
 
 ## Shapes
 

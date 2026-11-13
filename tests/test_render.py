@@ -37,6 +37,8 @@ class Helpers(unittest.TestCase):
         self.assertFalse(R.one_sentence("The page loads. Then it saves."))
         self.assertFalse(R.one_sentence("It checks! Then it saves."))
         self.assertFalse(R.one_sentence("一。二。"))
+        self.assertTrue(R.one_sentence("It reads a file, e.g. the cart, and saves it."))
+        self.assertFalse(R.one_sentence("It saves. 2 rows change."))
 
     def test_parse_lines(self):
         self.assertEqual(R.parse_lines("12-30"), (12, 30))
@@ -88,6 +90,28 @@ class Extract(Base):
         for rel in ("../app.js", "/etc/hostname"):
             code, problems = self.extract({"file": rel, "lines": "1"})
             self.assertProblem(problems, "pieces[0].code.file", "not found")
+
+    def test_existing_file_above_root_is_refused(self):
+        (self.root / "secret.txt").write_text("token\n", encoding="utf-8")
+        sub = self.root / "project"
+        sub.mkdir()
+        (sub / "link.txt").symlink_to(self.root / "secret.txt")
+        for rel in ("../secret.txt", "link.txt"):
+            problems = R.Problems()
+            self.assertIsNone(R.extract(sub, {"file": rel, "lines": "1"}, "pieces[0].code", problems), rel)
+            self.assertProblem(problems, "pieces[0].code.file", "not found")
+
+    def test_only_newlines_split_lines(self):
+        (self.root / "odd.py").write_text("a = 1\n\x0c\nb = 2\nc = 'x\u2028y'\nd = 4\n", encoding="utf-8")
+        code, problems = self.extract({"file": "odd.py", "lines": "3-5"})
+        self.assertEqual(problems, [])
+        self.assertEqual(code["lines"], ["b = 2", "c = 'x\u2028y'", "d = 4"])
+        code, problems = self.extract({"file": "odd.py", "lines": "6"})
+        self.assertProblem(problems, "pieces[0].code.lines", "has 5 lines")
+
+    def test_huge_focus_range_is_refused_without_expanding(self):
+        code, problems = self.extract({"file": "app.js", "lines": "2-4", "focus": "1-99999999999"})
+        self.assertProblem(problems, "pieces[0].code.focus", "not inside 2-4")
 
     def test_lines_past_end_of_file(self):
         code, problems = self.extract({"file": "app.js", "lines": "8-12"})
@@ -155,6 +179,13 @@ class Sheet(Base):
         self.assertEqual(problems, [])
         self.assertEqual(sheet["arrows"], [{"from": "b", "to": "a", "label": "Fails"}])
 
+    def test_malformed_arrows_unsure_and_after_are_refused(self):
+        sheet, problems = self.check([piece("a"), piece("b", after=[["a"]])])
+        self.assertProblem(problems, "pieces[1].after", "not a piece on this sheet")
+        sheet, problems = self.check([piece("a"), piece("b", after=["a"])], arrows=["b>a"], unsure="gap")
+        self.assertProblem(problems, "arrows[0]", "not an object")
+        self.assertProblem(problems, "unsure", "not a list")
+
     def test_code_is_extracted(self):
         sheet, problems = self.check([piece("a", code={"file": "app.js", "lines": "2-3"})])
         self.assertEqual(sheet["pieces"][0]["code"]["lines"], ["line 2", "line 3"])
@@ -220,6 +251,32 @@ class Build(Base):
         d = self.doc(sheets=[{"name": "One", "pieces": [piece("a")]}, {"name": "Two", "pieces": [piece("a")]}])
         del d["pieces"]
         self.assertProblem(self.problems(d), "sheets[1].pieces[0].id", "used twice")
+
+    def test_ui_values_must_be_words(self):
+        ui = {k: k.upper() for k in R.UI_KEYS}
+        ui["replay"] = ""
+        self.assertProblem(self.problems(self.doc(lang="de", ui=ui)), "ui.replay", "empty")
+        self.assertProblem(self.problems(self.doc(ui=["x"])), "ui", "not an object")
+
+    def test_malformed_sheets_and_shots_are_refused(self):
+        d = self.doc(sheets=["one"])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "sheets[0]", "not an object")
+        self.assertProblem(self.problems(self.doc(shots=["a.png"])), "shots[0]", "not an object")
+        self.assertProblem(self.problems(self.doc(shots={"file": "a.png"})), "shots", "not a list")
+
+    def test_top_level_arrows_next_to_sheets(self):
+        d = self.doc(sheets=[{"name": "One", "pieces": [piece("a")]}], unsure=[{"after": "a", "text": "Gap."}])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "unsure", "inside each sheet")
+
+    def test_sheet_name_and_shot_tag_are_short(self):
+        d = self.doc(sheets=[{"name": "One two three four", "pieces": [piece("a")]}])
+        del d["pieces"]
+        self.assertProblem(self.problems(d), "sheets[0].name", "three words")
+        (self.root / "s.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+        d = self.doc(shots=[{"file": "s.svg", "piece": "a", "tag": "one two three four five six seven"}])
+        self.assertProblem(self.problems(d), "shots[0].tag", "six words")
 
     def test_shot_must_exist(self):
         d = self.doc(shots=[{"file": "missing.png", "piece": "a", "tag": "The button"}])
